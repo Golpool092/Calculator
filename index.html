@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Калькулятор Mills</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; font-family: Arial, sans-serif; overflow: hidden;
+      transition: background 0.3s;
+    }
+    body.black { background: #000; color: #fff; }
+    body.white { background: #fff; color: #000; }
+    body.red   { background: #600; color: #fff; }
+    #particles {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 0;
+    }
+    .container {
+      position: relative; display: flex; flex-direction: column;
+      width: 100%; height: 100%; max-width: 400px; z-index: 1;
+    }
+    .history-container {
+      flex: 1.5; padding: 10px; overflow-y: auto;
+    }
+    .history-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;
+    }
+    .history-header h2 { font-size: 18px; color: #D26900; }
+    #menu-toggle {
+      font-size: 24px; background: none; border: none; color: inherit;
+      cursor: pointer; padding: 0 5px;
+    }
+    #menu {
+      position: absolute; right: 10px; top: 40px; background: rgba(0,0,0,0.9);
+      border-radius: 8px; padding: 8px 0; display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10;
+    }
+    #menu.show { display: block; }
+    #menu button {
+      display: block; width: 100%; padding: 8px 16px;
+      background: none; color: white; border: none; text-align: left;
+      cursor: pointer; font-size: 14px;
+    }
+    #menu button:hover { background: #333; }
+    #history { list-style: none; }
+    #history li { margin-bottom: 6px; font-size: 16px; }
+    .display {
+      flex: 0.5; padding: 10px; display: flex;
+      flex-direction: column; justify-content: center;
+    }
+    #display {
+      width: 100%; font-size: 28px; padding: 10px;
+      text-align: right; border: none; background: none;
+      color: inherit;
+    }
+    #preview {
+      font-size: 16px; text-align: right;
+      color: #D26900; min-height: 20px;
+    }
+    .buttons {
+      flex: 2; display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 10px; padding: 15px; position: relative; z-index: 2;
+    }
+    .buttons button {
+      font-size: 20px; padding: 15px; border: none; border-radius: 8px; cursor: pointer;
+      background: linear-gradient(145deg, #D26900, #BF360C); color: #fff;
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.3), -4px -4px 8px rgba(255,255,255,0.1);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+    .buttons button:hover {
+      transform: translateY(-3px);
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.4), -6px -6px 12px rgba(255,255,255,0.15);
+    }
+    .buttons button:active {
+      transform: translateY(0);
+      box-shadow: inset 2px 2px 6px rgba(0,0,0,0.4), inset -2px -2px 6px rgba(255,255,255,0.1);
+    }
+    .theme-btn {
+      background: #7F7679 !important; color: #fff !important; grid-column: span 2;
+    }
+  </style>
+</head>
+<body class="black">
+  <canvas id="particles"></canvas>
+  <div class="container">
+    <div class="history-container">
+      <div class="history-header">
+        <h2>История</h2>
+        <button id="menu-toggle">⋮</button>
+      </div>
+      <div id="menu">
+        <button id="clear-history">Удалить историю</button>
+        <button id="toggle-bg">Сменить фон</button>
+      </div>
+      <ul id="history"></ul>
+    </div>
+    <div class="display">
+      <input type="text" id="display" readonly placeholder="0" />
+      <div id="preview"></div>
+    </div>
+    <div class="buttons">
+      <button data-action="delete-last">⌫</button>
+      <button data-action="clear">C</button>
+      <button data-value="(">(</button>
+      <button data-value=")">)</button>
+      <button data-value="1">1</button>
+      <button data-value="2">2</button>
+      <button data-value="3">3</button>
+      <button data-value="/">÷</button>
+      <button data-value="4">4</button>
+      <button data-value="5">5</button>
+      <button data-value="6">6</button>
+      <button data-value="*">×</button>
+      <button data-value="7">7</button>
+      <button data-value="8">8</button>
+      <button data-value="9">9</button>
+      <button data-value="-">−</button>
+      <button data-value="0">0</button>
+      <button data-value=".">.</button>
+      <button data-value="/">/</button>
+      <button data-value="+">+</button>
+      <button data-value="**">x²</button>
+      <button data-value="√">√</button>
+      <button data-value="%">%</button>
+      <button data-action="calculate">=</button>
+      <button data-value="e">e</button>
+      <button class="theme-btn" data-action="toggle-particle-color">ТЕМА</button>
+      <button data-value="π">π</button>
+    </div>
+  </div>
+  <script>
+    const display = document.getElementById('display');
+    const preview = document.getElementById('preview');
+    const buttons = document.querySelectorAll('.buttons button');
+    const historyList = document.getElementById('history');
+    const clearBtn = document.getElementById('clear-history');
+    const menuToggle = document.getElementById('menu-toggle');
+    const menu = document.getElementById('menu');
+    const bgToggle = document.getElementById('toggle-bg');
+    const themes = ['black', 'white', 'red'];
+    let currentTheme = localStorage.getItem('bgTheme') || 'black';
+    document.body.className = currentTheme;
+    menuToggle.onclick = () => menu.classList.toggle('show');
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#menu') && !e.target.closest('#menu-toggle')) menu.classList.remove('show');
+    });
+    bgToggle.onclick = () => {
+      let idx = (themes.indexOf(document.body.className) + 1) % themes.length;
+      document.body.className = themes[idx];
+      localStorage.setItem('bgTheme', themes[idx]);
+    };
+    let historyArr = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+    function updateHistoryUI() {
+      historyList.innerHTML = '';
+      historyArr.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = `${item.expr} = ${item.result}`;
+        historyList.prepend(li);
+      });
+    }
+    function saveHistory() { localStorage.setItem('calcHistory', JSON.stringify(historyArr)); }
+    clearBtn.onclick = () => { historyArr = []; saveHistory(); updateHistoryUI(); };
+    function parseExpression(expr) {
+      return expr.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)')
+                 .replace(/√([^)]+)/g, 'Math.sqrt($1)')
+                 .replace(/√(\d+(?:\.\d+)?)/g, 'Math.sqrt($1)')
+                 .replace(/÷/g, '/')
+                 .replace(/×/g, '*')
+                 .replace(/π/g, '3.14159265')
+                 .replace(/e/g, '2.7182818');
+    }
+    function calculate() {
+      try {
+        const expr = display.value;
+        const res = eval(parseExpression(expr));
+        historyArr.push({ expr, result: res }); saveHistory(); updateHistoryUI();
+        display.value = res; preview.textContent = '';
+      } catch { display.value = 'Ошибка!'; }
+    }
+    function updatePreview() { try { preview.textContent = display.value ? eval(parseExpression(display.value)) : ''; } catch {} }
+    buttons.forEach(btn => btn.addEventListener('click', () => {
+      const val = btn.dataset.value;
+      const action = btn.dataset.action;
+      if (action === 'delete-last') display.value = display.value.slice(0, -1);
+      else if (action === 'clear') { display.value = ''; preview.textContent = ''; }
+      else if (action === 'calculate') calculate();
+      else if (action === 'toggle-particle-color') {
+        particleIndex = (particleIndex + 1) % particleColors.length;
+        localStorage.setItem('particleColorIndex', particleIndex);
+      }
+      else if (val) display.value += val;
+      updatePreview();
+    }));
+    updateHistoryUI();
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    const particles = Array.from({ length: 60 }, () => ({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*3+1, vx: (Math.random()-0.5)*0.6, vy: (Math.random()-0.5)*0.6 }));
+    const particleColors = ['#D26900', '#FFFFFF', '#FF0000', 'off'];
+    let particleIndex = parseInt(localStorage.getItem('particleColorIndex')) || 0;
+    (function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const color = particleColors[particleIndex];
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x<0) p.x=canvas.width; if (p.x>canvas.width) p.x=0;
+        if (p.y<0) p.y=canvas.height; if (p.y>canvas.height) p.y=0;
+        if (color !== 'off') {
+          ctx.beginPath(); ctx.fillStyle = color;
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+        }
+      });
+      requestAnimationFrame(animateParticles);
+    })();
+  </script>
+</body>
+</html>
